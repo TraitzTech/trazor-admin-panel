@@ -6,8 +6,7 @@ export default function Page({ params }: { params: { id: string } }) {
 }
 
 export async function generateStaticParams() {
-  const data = await apiFetch('/specialties'); // already parsed
-  return data.specialties.map((specialty: any) => ({
-    id: specialty.id.toString(),
-  }));
+  return [];
 }
+
+export const revalidate = 60;
