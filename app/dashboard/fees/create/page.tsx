@@ -18,7 +18,6 @@ const CreateFeePage = () => {
     studentId: '',
     internshipId: '',
     feeAmount: '',
-    currency: 'USD',
     currency: 'XAF',
     dueDate: '',
     description: '',
