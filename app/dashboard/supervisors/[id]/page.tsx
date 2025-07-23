@@ -386,7 +386,7 @@ const SupervisorDetailPage = ({ params }: { params: { id: string } }) => {
                               </Badge>
                             </div>
                             <div className="w-32">
-                              <Progress value={intern.progress} className="h-2" />
+                              {/*<Progress value={50} className="h-2" />*/}
                             </div>
                           </div>
                         </div>
@@ -406,7 +406,7 @@ const SupervisorDetailPage = ({ params }: { params: { id: string } }) => {
                         <span className="text-sm font-medium">Intern Completion Rate</span>
                         <span className="text-sm text-muted-foreground">{performanceMetrics.internCompletion}%</span>
                       </div>
-                      <Progress value={performanceMetrics.internCompletion} className="h-2" />
+                      {/*<Progress value={50} className="h-2" />*/}
                     </CardContent>
                   </Card>
                   
@@ -416,7 +416,7 @@ const SupervisorDetailPage = ({ params }: { params: { id: string } }) => {
                         <span className="text-sm font-medium">Average Rating</span>
                         <span className="text-sm text-muted-foreground">{performanceMetrics.averageRating}/5.0</span>
                       </div>
-                      <Progress value={(performanceMetrics.averageRating / 5) * 100} className="h-2" />
+                      {/*<Progress value={(50 / 5) * 100} className="h-2" />*/}
                     </CardContent>
                   </Card>
                   
@@ -426,7 +426,7 @@ const SupervisorDetailPage = ({ params }: { params: { id: string } }) => {
                         <span className="text-sm font-medium">Response Time</span>
                         <span className="text-sm text-muted-foreground">{performanceMetrics.responseTime}h avg</span>
                       </div>
-                      <Progress value={Math.max(0, 100 - (performanceMetrics.responseTime * 10))} className="h-2" />
+                      {/*<Progress value={Math.max(0, 100 - (performanceMetrics.responseTime * 10))} className="h-2" />*/}
                     </CardContent>
                   </Card>
                   
@@ -436,7 +436,7 @@ const SupervisorDetailPage = ({ params }: { params: { id: string } }) => {
                         <span className="text-sm font-medium">Mentorship Effectiveness</span>
                         <span className="text-sm text-muted-foreground">{performanceMetrics.mentorshipEffectiveness}%</span>
                       </div>
-                      <Progress value={performanceMetrics.mentorshipEffectiveness} className="h-2" />
+                      {/*<Progress value={50} className="h-2" />*/}
                     </CardContent>
                   </Card>
                 </div>

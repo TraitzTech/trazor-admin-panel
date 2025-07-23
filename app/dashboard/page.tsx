@@ -194,12 +194,12 @@ const Dashboard = () => {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <p className="text-sm font-medium">Application Success Rate</p>
-                        <Progress value={72} className="w-full" />
+                        {/*<Progress value={72} className="w-full" />*/}
                         <p className="text-xs text-gray-600">72% of applications result in interviews</p>
                       </div>
                       <div className="space-y-2">
                         <p className="text-sm font-medium">Platform Engagement</p>
-                        <Progress value={85} className="w-full" />
+                        {/*<Progress value={85} className="w-full" />*/}
                         <p className="text-xs text-gray-600">85% weekly active users</p>
                       </div>
                     </div>
