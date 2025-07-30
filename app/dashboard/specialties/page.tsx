@@ -129,7 +129,7 @@ const SpecialtiesPage = () => {
 
   if (loading) {
     return (
-        <div className="p-6 flex flex-col items-center justify-center space-y-4">
+        <div className="p-6 h-64 flex flex-col items-center justify-center space-y-4">
           <Loader2 className="h-10 w-10 text-primary animate-spin" />
           <p className="text-muted-foreground text-sm">Loading specialties...</p>
         </div>

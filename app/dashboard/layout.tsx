@@ -47,7 +47,7 @@ const navigation = [
   { name: 'Users', href: '/dashboard/users', icon: Users },
   { name: 'Logbooks', href: '/dashboard/logbooks', icon: BookOpen },
   { name: 'Announcements', href: '/dashboard/announcements', icon: Megaphone },
-  { name: 'Admins', href: '/dashboard/admins', icon: Shield },
+  { name: 'Tasks', href: '/dashboard/tasks', icon: Shield },
   { name: 'Supervisors', href: '/dashboard/supervisors', icon: UserCheck },
   { name: 'Internships', href: '/dashboard/internships', icon: Briefcase },
   { name: 'Applications', href: '/dashboard/applications', icon: FileText },
@@ -131,26 +131,31 @@ export default function DashboardLayout({
           <nav className="flex-1 overflow-y-auto py-6 px-3 custom-scrollbar">
             <div className="space-y-1">
               {navigation.map((item) => {
-                const isActive = pathname === item.href;
+                const isActive =
+                    item.href === '/dashboard'
+                        ? pathname === '/dashboard'
+                        : pathname.startsWith(item.href);
+
                 return (
-                  <button
-                    key={item.name}
-                    onClick={() => handleNavigation(item.href)}
-                    className={`group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                      isActive
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                    } w-full text-left`}
-                  >
-                    <item.icon
-                      className={`mr-3 h-5 w-5 transition-colors ${
-                        isActive ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-accent-foreground'
-                      }`}
-                    />
-                    {item.name}
-                  </button>
+                    <button
+                        key={item.name}
+                        onClick={() => handleNavigation(item.href)}
+                        className={`group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                            isActive
+                                ? 'bg-primary text-primary-foreground'
+                                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                        } w-full text-left`}
+                    >
+                      <item.icon
+                          className={`mr-3 h-5 w-5 transition-colors ${
+                              isActive ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-accent-foreground'
+                          }`}
+                      />
+                      {item.name}
+                    </button>
                 );
               })}
+
             </div>
           </nav>
 
