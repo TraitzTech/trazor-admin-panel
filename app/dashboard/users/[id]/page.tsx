@@ -51,6 +51,10 @@ const UserDetailPage = ({ params }: { params: { id: string } }) => {
     }
   };
 
+  const handleEditUser = (userId: number) => {
+    router.push(`/dashboard/users/${userId}/edit`);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'under_review': return 'bg-yellow-100 text-yellow-700';
@@ -95,17 +99,17 @@ const UserDetailPage = ({ params }: { params: { id: string } }) => {
               <MessageSquare className="w-4 h-4 mr-2" />
               Message
             </Button>
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => handleEditUser(params.id)}>
               <Edit className="w-4 h-4 mr-2" />
               Edit
             </Button>
-            <Button variant="outline">
-              {user.status === 'active' ? <UserX className="w-4 h-4 mr-2" /> : <UserCheck className="w-4 h-4 mr-2" />}
-              {user.status === 'active' ? 'Deactivate' : 'Activate'}
-            </Button>
-            <Button variant="outline">
-              <MoreHorizontal className="w-4 h-4" />
-            </Button>
+            {/*<Button variant="outline">*/}
+            {/*  {user.status === 'active' ? <UserX className="w-4 h-4 mr-2" /> : <UserCheck className="w-4 h-4 mr-2" />}*/}
+            {/*  {user.status === 'active' ? 'Deactivate' : 'Activate'}*/}
+            {/*</Button>*/}
+            {/*<Button variant="outline">*/}
+            {/*  <MoreHorizontal className="w-4 h-4" />*/}
+            {/*</Button>*/}
           </div>
         </div>
 

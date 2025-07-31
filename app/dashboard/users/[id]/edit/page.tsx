@@ -27,8 +27,9 @@ const EditUserPage = ({ params }: { params: { id: string } }) => {
     location: '',
     phone: '',
     bio: '',
-    institution: '', // Changed from university for consistency
+    institution: '',
     specialty: '', // This will hold the selected specialty ID/name
+    hort_number: '',
     avatar: '/placeholder-avatar.jpg',
   });
   const [specialtiesList, setSpecialtiesList] = useState<{ id: string; name: string }[]>([]);
@@ -48,6 +49,7 @@ const EditUserPage = ({ params }: { params: { id: string } }) => {
           bio: user.bio || '',
           institution: user.institution || '',
           specialty: user.specialty || '',
+          hort_number: user.hort_number || '',
           avatar: user.avatar || '/placeholder-avatar.jpg'
         });
       } catch (err: any) {
@@ -60,23 +62,43 @@ const EditUserPage = ({ params }: { params: { id: string } }) => {
     fetchUser();
   }, [params.id]);
 
+  // Fetch specialties on component mount
   useEffect(() => {
-    apiFetch('/specialties')
-        .then(res => setSpecialtiesList(res.specialties || [])) // Ensure specialties is an array
-        .catch(() => toast.error('Failed to load specialties'));
+    const fetchSpecialties = async () => {
+      try {
+        const response = await apiFetch('/admin/specialties');
+        if (response.success) {
+          setSpecialtiesList(response.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch specialties:', err);
+      }
+    };
+    fetchSpecialties();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Prepare the data to match API expectations
+    const dataToSend = {
+      ...formData,
+      // Convert specialty name to ID if needed
+      specialty: specialtiesList.find(s => s.name === formData.specialty)?.id || formData.specialty,
+      // Include hort_number only for interns
+      ...(formData.role === 'intern' ? {
+        hort_number: formData.hort_number
+      } : {})
+    };
+
     try {
-      await UserApiService.updateUser(params.id, formData);
+      await UserApiService.updateUser(params.id, dataToSend);
       toast.success('User updated successfully!');
       router.push(`/dashboard/users/${params.id}`);
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(err.message || 'Failed to update user');
     }
   };
-
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -251,7 +273,7 @@ const EditUserPage = ({ params }: { params: { id: string } }) => {
                         </SelectTrigger>
                         <SelectContent>
                           {specialtiesList.map((specialty) => (
-                              <SelectItem key={specialty.id} value={specialty.name}>
+                              <SelectItem key={specialty.id} value={specialty.id.toString()}>
                                 {specialty.name}
                               </SelectItem>
                           ))}

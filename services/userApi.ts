@@ -26,7 +26,7 @@ export class UserApiService {
     }
 
     // Toggle user status
-    static async toggleUserStatus(userId: number): Promise<{ id: number; status: string }> {
+    static async toggleUserStatus(userId: string): Promise<{ id: number; status: string }> {
         const response: ApiResponse<{ id: number; status: string }> = await apiFetch(
             `/admin/users/${userId}/toggle-status`,
             {
@@ -36,7 +36,7 @@ export class UserApiService {
         return response.data;
     }
 
-    static async getUserById(userId: number): Promise<User> {
+    static async getUserById(userId: string): Promise<User> {
         const response: ApiResponse<User> = await apiFetch(`/admin/users/${userId}`);
         return response.data;
     }
@@ -51,7 +51,7 @@ export class UserApiService {
     }
 
     // Update user (placeholder - implement based on your update endpoints)
-    static async updateUser(userId: number, userData: Partial<User>): Promise<User> {
+    static async updateUser(userId: string, userData: Partial<User>): Promise<User> {
         const response: ApiResponse<User> = await apiFetch(`/admin/users/${userId}`, {
             method: 'PUT',
             body: JSON.stringify(userData),
@@ -60,7 +60,7 @@ export class UserApiService {
     }
 
     // Delete user (placeholder - implement based on your delete endpoints)
-    static async deleteUser(userId: number): Promise<void> {
+    static async deleteUser(userId: string): Promise<void> {
         await apiFetch(`/admin/users/${userId}`, {
             method: 'DELETE',
         });

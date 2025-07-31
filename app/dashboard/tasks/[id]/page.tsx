@@ -1,89 +1,37 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { toast } from 'sonner';
-import { useEffect, useState } from 'react';
-import { apiFetch } from '@/lib/api';
+import { useState, useEffect } from 'react';
 import {
     ArrowLeft, Edit, Calendar, Clock, CheckCircle, AlertCircle,
     FileText, MessageSquare, MoreHorizontal, Loader2, Paperclip,
     XCircle, Settings, Target, Flag, Play, Pause, Trash2, Download
 } from 'lucide-react';
 import { ThumbsUp, Reply } from 'lucide-react';
-
-interface Attachment {
-    id: number;
-    original_name: string;
-    file_size?: number;
-    path: string;
-    description?: string;
-    uploaded_by?: string;
-    created_at: string;
-    updated_at: string;
-}
-
-interface Comment {
-    id: number;
-    content: string;
-    created_at: string;
-    user?: {
-        name?: string;
-        avatar?: string;
-    };
-}
-
-// Update your interfaces first
-interface InternSubmission {
-    status: 'pending' | 'in_progress' | 'done' | 'cancelled';
-    started_at?: string;
-    completed_at?: string;
-    intern_notes?: string;
-    assigned_at?: string;
-    updated_at?: string;
-}
-
-interface TaskIntern {
-    id: number;
-    user_id: string;
-    institution: string;
-    matric_number: string;
-    hort_number: string;
-    user?: {
-        name?: string;
-        email?: string;
-        avatar?: string;
-    };
-    specialty?: {
-        id: number;
-        name: string;
-    };
-    submission: InternSubmission; // This contains the pivot data
-}
-
-interface Task {
-    id: number;
-    title: string;
-    description: string;
-    status: string;
-    priority?: string;
-    due_date?: string;
-    created_at: string;
-    updated_at: string;
-    interns: TaskIntern[]; // Updated to use TaskIntern interface
-    specialty?: {
-        id: number;
-        name: string;
-    };
-    comments: Comment[];
-    attachments: Attachment[];
-}
-
+import { toast } from 'sonner';
+import { apiFetch } from '@/lib/api';
+import {
+    Card, CardContent, CardDescription, CardHeader, CardTitle
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+    Task, Comment, Attachment, TaskIntern, InternSubmission
+} from '@/types/task';
+import { Search } from 'lucide-react';
 const TaskDetailPage = ({ params }: { params: { id: string } }) => {
     const [task, setTask] = useState<Task | null>(null);
     const [loading, setLoading] = useState(true);
@@ -95,6 +43,8 @@ const TaskDetailPage = ({ params }: { params: { id: string } }) => {
     const [deletingAttachment, setDeletingAttachment] = useState<number | null>(null);
     const [editingComment, setEditingComment] = useState<Comment | null>(null);
     const [deletingComment, setDeletingComment] = useState<number | null>(null);
+    const [showDeleteCommentDialog, setShowDeleteCommentDialog] = useState(false);
+    const [showDeleteAttachmentDialog, setShowDeleteAttachmentDialog] = useState(false);
     const router = useRouter();
     const { id } = params;
 
@@ -126,6 +76,7 @@ const TaskDetailPage = ({ params }: { params: { id: string } }) => {
         setEditingComment(null);
         setComment('');
     };
+
     const handleUpdateComment = async () => {
         if (!editingComment || !comment.trim()) {
             toast.error('Please enter a comment');
@@ -135,7 +86,7 @@ const TaskDetailPage = ({ params }: { params: { id: string } }) => {
         try {
             await apiFetch(`/comments/${editingComment.id}`, {
                 method: 'PUT',
-                body: JSON.stringify({ body: comment }),
+                body: JSON.stringify({ content: comment }),
             });
 
             toast.success('Comment updated successfully');
@@ -150,12 +101,11 @@ const TaskDetailPage = ({ params }: { params: { id: string } }) => {
         }
     };
 
-    const handleDeleteComment = async (commentId: number) => {
-        if (!confirm('Are you sure you want to delete this comment?')) return;
+    const handleDeleteComment = async () => {
+        if (!deletingComment) return;
 
-        setDeletingComment(commentId);
         try {
-            await apiFetch(`/comments/${commentId}`, {
+            await apiFetch(`/comments/${deletingComment}`, {
                 method: 'DELETE',
             });
 
@@ -168,6 +118,34 @@ const TaskDetailPage = ({ params }: { params: { id: string } }) => {
             toast.error('Failed to delete comment');
         } finally {
             setDeletingComment(null);
+            setShowDeleteCommentDialog(false);
+        }
+    };
+
+    const handleDeleteAttachment = async () => {
+        if (!deletingAttachment) return;
+
+        setDeletingAttachment(deletingAttachment);
+        try {
+            const response = await apiFetch(`/attachments/${deletingAttachment}`, {
+                method: 'DELETE',
+            });
+
+            if (response.success) {
+                toast.success('Attachment deleted successfully');
+                const updatedTask = await apiFetch(`/tasks/${id}`);
+                if (updatedTask?.data) {
+                    setTask(updatedTask.data);
+                }
+            } else {
+                throw new Error(response.message || 'Failed to delete attachment');
+            }
+        } catch (err) {
+            toast.error('Failed to delete attachment');
+            console.error('Error deleting attachment:', err);
+        } finally {
+            setDeletingAttachment(null);
+            setShowDeleteAttachmentDialog(false);
         }
     };
 
@@ -231,8 +209,6 @@ const TaskDetailPage = ({ params }: { params: { id: string } }) => {
             });
 
             toast.success('Intern status updated successfully');
-
-            // Refresh task data
             const updatedTask = await apiFetch(`/tasks/${id}`);
             if (updatedTask?.data) {
                 setTask(updatedTask.data);
@@ -282,7 +258,7 @@ const TaskDetailPage = ({ params }: { params: { id: string } }) => {
             });
 
             toast.success(`Task status updated to ${newStatus.replace('_', ' ')}`);
-            setTask(prev => ({ ...prev, status: newStatus }));
+            setTask(prev => prev ? { ...prev, status: newStatus } : null);
         } catch (err) {
             toast.error('Failed to update task status');
         } finally {
@@ -299,8 +275,7 @@ const TaskDetailPage = ({ params }: { params: { id: string } }) => {
         try {
             await apiFetch(`/tasks/comments`, {
                 method: 'POST',
-                body: JSON.stringify({ body: comment, task_id: id }),
-
+                body: JSON.stringify({ content: comment, task_id: id }),
             });
 
             toast.success('Comment added successfully');
@@ -309,7 +284,6 @@ const TaskDetailPage = ({ params }: { params: { id: string } }) => {
             if (updatedTask?.data) {
                 setTask(updatedTask.data);
             }
-
         } catch (err) {
             toast.error('Failed to add comment');
         }
@@ -333,23 +307,20 @@ const TaskDetailPage = ({ params }: { params: { id: string } }) => {
         try {
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('task_id', id); // Add the task ID
+            formData.append('task_id', id);
             if (fileDescription) {
                 formData.append('description', fileDescription);
             }
 
-            // Use the correct endpoint based on your routes
-            // Try this endpoint first (based on your routes)
             const response = await apiFetch(`/tasks/${id}/attachments`, {
                 method: 'POST',
-                body: formData, // Don't stringify FormData
+                body: formData,
             });
 
             if (response.success) {
                 toast.success('File uploaded successfully');
                 setFile(null);
                 setFileDescription('');
-                // Refresh task data
                 const updatedTask = await apiFetch(`/tasks/${id}`);
                 if (updatedTask?.data) {
                     setTask(updatedTask.data);
@@ -375,11 +346,8 @@ const TaskDetailPage = ({ params }: { params: { id: string } }) => {
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-
-            // Optional: fixed filename or retrieved from backend
             const filename = `attachment-${attachmentId}.pdf`;
             link.setAttribute('download', filename);
-
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -390,40 +358,209 @@ const TaskDetailPage = ({ params }: { params: { id: string } }) => {
         }
     };
 
-
-    const handleDeleteAttachment = async (attachmentId: number) => {
-        if (!confirm('Are you sure you want to delete this attachment?')) return;
-
-        setDeletingAttachment(attachmentId);
-        try {
-            const response = await apiFetch(`/attachments/${attachmentId}`, {
-                method: 'DELETE',
-            });
-
-            if (response.success) {
-                toast.success('Attachment deleted successfully');
-                // Refresh task data
-                const updatedTask = await apiFetch(`/tasks/${id}`);
-                if (updatedTask?.data) {
-                    setTask(updatedTask.data);
-                }
-            } else {
-                throw new Error(response.message || 'Failed to delete attachment');
-            }
-        } catch (err) {
-            toast.error('Failed to delete attachment');
-            console.error('Error deleting attachment:', err);
-        } finally {
-            setDeletingAttachment(null);
-        }
-    };
-
     const formatFileSize = (bytes?: number) => {
         if (!bytes) return '0 Bytes';
         const k = 1024;
         const sizes = ['Bytes', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i]);
+    };
+
+    const InternSubmissionsCard = () => {
+        if (!task?.interns || task.interns.length === 0) return null;
+
+        const [searchTerm, setSearchTerm] = useState('');
+        const [currentPage, setCurrentPage] = useState(1);
+        const internsPerPage = 5;
+
+        const totalInterns = task.interns.length;
+        const completedCount = task.interns.filter(intern => intern.submission.status === 'done').length;
+        const inProgressCount = task.interns.filter(intern => intern.submission.status === 'in_progress').length;
+        const pendingCount = task.interns.filter(intern => intern.submission.status === 'pending').length;
+        const completionRate = totalInterns > 0 ? Math.round((completedCount / totalInterns) * 100) : 0;
+
+        // Filter interns based on search term
+        const filteredInterns = task.interns.filter(intern => {
+            const searchLower = searchTerm.toLowerCase();
+            return (
+                intern.user?.name?.toLowerCase().includes(searchLower) ||
+                intern.matric_number?.toLowerCase().includes(searchLower) ||
+                intern.institution?.toLowerCase().includes(searchLower) ||
+                intern.submission.status?.toLowerCase().includes(searchLower)
+            );
+        });
+
+        // Pagination logic
+        const totalPages = Math.ceil(filteredInterns.length / internsPerPage);
+        const currentInterns = filteredInterns.slice(
+            (currentPage - 1) * internsPerPage,
+            currentPage * internsPerPage
+        );
+
+        const handlePageChange = (newPage: number) => {
+            setCurrentPage(newPage);
+        };
+
+        return (
+            <Card>
+                <CardHeader>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <CardTitle>Intern Submissions ({totalInterns})</CardTitle>
+                            <CardDescription>
+                                {completionRate}% completion rate • {completedCount} completed, {inProgressCount} in progress, {pendingCount} pending
+                            </CardDescription>
+                        </div>
+                        <div className="relative w-full sm:w-auto">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search interns..."
+                                value={searchTerm}
+                                onChange={(e) => {
+                                    setSearchTerm(e.target.value);
+                                    setCurrentPage(1); // Reset to first page when searching
+                                }}
+                                className="pl-10 w-full"
+                            />
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {/* Stats Summary */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                        <div className="text-center p-2 bg-green-50 rounded dark:bg-green-900/20">
+                            <div className="text-lg font-bold text-green-700 dark:text-green-300">{completedCount}</div>
+                            <div className="text-xs text-green-600 dark:text-green-400">Done</div>
+                        </div>
+                        <div className="text-center p-2 bg-blue-50 rounded dark:bg-blue-900/20">
+                            <div className="text-lg font-bold text-blue-700 dark:text-blue-300">{inProgressCount}</div>
+                            <div className="text-xs text-blue-600 dark:text-blue-400">In Progress</div>
+                        </div>
+                        <div className="text-center p-2 bg-yellow-50 rounded dark:bg-yellow-900/20">
+                            <div className="text-lg font-bold text-yellow-700 dark:text-yellow-300">{pendingCount}</div>
+                            <div className="text-xs text-yellow-600 dark:text-yellow-400">Pending</div>
+                        </div>
+                        <div className="text-center p-2 bg-gray-50 rounded dark:bg-gray-800">
+                            <div className="text-lg font-bold text-gray-700 dark:text-gray-300">{completionRate}%</div>
+                            <div className="text-xs text-gray-600 dark:text-gray-400">Complete</div>
+                        </div>
+                    </div>
+
+                    {/* Intern List */}
+                    <div className="space-y-3">
+                        {currentInterns.length > 0 ? (
+                            <>
+                                {currentInterns.map((intern) => (
+                                    <div key={intern.id} className="border rounded-lg p-3 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center space-x-3">
+                                                <Avatar className="h-8 w-8">
+                                                    <AvatarImage src={intern.user?.avatar} alt={intern.user?.name} />
+                                                    <AvatarFallback className="text-xs">
+                                                        {getInitials(intern.user?.name)}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                <div>
+                                                    <p className="font-medium text-sm">{intern.user?.name || 'Unknown'}</p>
+                                                    <p className="text-xs text-muted-foreground">{intern.matric_number}</p>
+                                                    {intern.institution && (
+                                                        <p className="text-xs text-muted-foreground">{intern.institution}</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <Badge className={getSubmissionStatusColor(intern.submission.status)}>
+                                                {intern.submission.status.replace('_', ' ')}
+                                            </Badge>
+                                        </div>
+
+                                        <div className="text-xs text-muted-foreground space-y-1 pl-11">
+                                            {intern.submission.assigned_at && (
+                                                <div>Assigned: {new Date(intern.submission.assigned_at).toLocaleDateString()}</div>
+                                            )}
+                                            {intern.submission.started_at && (
+                                                <div>Started: {new Date(intern.submission.started_at).toLocaleString()}</div>
+                                            )}
+                                            {intern.submission.completed_at && (
+                                                <div>Completed: {new Date(intern.submission.completed_at).toLocaleString()}</div>
+                                            )}
+                                            {intern.submission.started_at && intern.submission.completed_at && (
+                                                <div className="font-medium text-green-600">
+                                                    Time taken: {calculateTimeTaken(intern.submission.started_at, intern.submission.completed_at)}
+                                                </div>
+                                            )}
+                                            {intern.submission.intern_notes && (
+                                                <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800 rounded text-sm">
+                                                    <strong>Notes:</strong> {intern.submission.intern_notes}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="flex gap-2 pl-11">
+                                            {intern.submission.status === 'pending' && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => handleInternStatusUpdate(intern.id, 'in_progress')}
+                                                >
+                                                    Start
+                                                </Button>
+                                            )}
+                                            {intern.submission.status === 'in_progress' && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => handleInternStatusUpdate(intern.id, 'done')}
+                                                >
+                                                    Complete
+                                                </Button>
+                                            )}
+                                            {intern.submission.status === 'done' && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => handleInternStatusUpdate(intern.id, 'in_progress')}
+                                                >
+                                                    Reopen
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {/* Pagination Controls */}
+                                {totalPages > 1 && (
+                                    <div className="flex items-center justify-between pt-4">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handlePageChange(currentPage - 1)}
+                                            disabled={currentPage === 1}
+                                        >
+                                            Previous
+                                        </Button>
+                                        <div className="text-sm text-muted-foreground">
+                                            Page {currentPage} of {totalPages}
+                                        </div>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handlePageChange(currentPage + 1)}
+                                            disabled={currentPage === totalPages}
+                                        >
+                                            Next
+                                        </Button>
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <div className="text-center py-6">
+                                <p className="text-muted-foreground">No interns found matching your search</p>
+                            </div>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+        );
     };
 
     if (loading) {
@@ -443,133 +580,60 @@ const TaskDetailPage = ({ params }: { params: { id: string } }) => {
         );
     }
 
-    const InternSubmissionsCard = () => {
-        if (!task?.interns || task.interns.length === 0) return null;
-
-        const totalInterns = task.interns.length;
-        const completedCount = task.interns.filter(intern => intern.submission.status === 'done').length;
-        const inProgressCount = task.interns.filter(intern => intern.submission.status === 'in_progress').length;
-        const pendingCount = task.interns.filter(intern => intern.submission.status === 'pending').length;
-        const completionRate = totalInterns > 0 ? Math.round((completedCount / totalInterns) * 100) : 0;
-
-        return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Intern Submissions ({totalInterns})</CardTitle>
-                    <CardDescription>
-                        {completionRate}% completion rate • {completedCount} completed, {inProgressCount} in progress, {pendingCount} pending
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {/* Progress Summary */}
-                    <div className="grid grid-cols-4 gap-2 mb-4">
-                        <div className="text-center p-2 bg-green-50 rounded dark:bg-green-900/20">
-                            <div className="text-lg font-bold text-green-700 dark:text-green-300">{completedCount}</div>
-                            <div className="text-xs text-green-600 dark:text-green-400">Done</div>
-                        </div>
-                        <div className="text-center p-2 bg-blue-50 rounded dark:bg-blue-900/20">
-                            <div className="text-lg font-bold text-blue-700 dark:text-blue-300">{inProgressCount}</div>
-                            <div className="text-xs text-blue-600 dark:text-blue-400">In Progress</div>
-                        </div>
-                        <div className="text-center p-2 bg-yellow-50 rounded dark:bg-yellow-900/20">
-                            <div className="text-lg font-bold text-yellow-700 dark:text-yellow-300">{pendingCount}</div>
-                            <div className="text-xs text-yellow-600 dark:text-yellow-400">Pending</div>
-                        </div>
-                        <div className="text-center p-2 bg-gray-50 rounded dark:bg-gray-800">
-                            <div className="text-lg font-bold text-gray-700 dark:text-gray-300">{completionRate}%</div>
-                            <div className="text-xs text-gray-600 dark:text-gray-400">Complete</div>
-                        </div>
-                    </div>
-
-                    {/* Individual Intern Submissions */}
-                    <div className="space-y-3">
-                        {task.interns.map((intern) => (
-                            <div key={intern.id} className="border rounded-lg p-3 space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center space-x-3">
-                                        <Avatar className="h-8 w-8">
-                                            <AvatarImage src={intern.user?.avatar} alt={intern.user?.name} />
-                                            <AvatarFallback className="text-xs">
-                                                {getInitials(intern.user?.name)}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <div>
-                                            <p className="font-medium text-sm">{intern.user?.name || 'Unknown'}</p>
-                                            <p className="text-xs text-muted-foreground">{intern.matric_number}</p>
-                                            {intern.institution && (
-                                                <p className="text-xs text-muted-foreground">{intern.institution}</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <Badge className={getSubmissionStatusColor(intern.submission.status)}>
-                                        {intern.submission.status.replace('_', ' ')}
-                                    </Badge>
-                                </div>
-
-                                {/* Submission Details */}
-                                <div className="text-xs text-muted-foreground space-y-1 pl-11">
-                                    {intern.submission.assigned_at && (
-                                        <div>Assigned: {new Date(intern.submission.assigned_at).toLocaleDateString()}</div>
-                                    )}
-                                    {intern.submission.started_at && (
-                                        <div>Started: {new Date(intern.submission.started_at).toLocaleString()}</div>
-                                    )}
-                                    {intern.submission.completed_at && (
-                                        <div>Completed: {new Date(intern.submission.completed_at).toLocaleString()}</div>
-                                    )}
-                                    {intern.submission.started_at && intern.submission.completed_at && (
-                                        <div className="font-medium text-green-600">
-                                            Time taken: {calculateTimeTaken(intern.submission.started_at, intern.submission.completed_at)}
-                                        </div>
-                                    )}
-                                    {intern.submission.intern_notes && (
-                                        <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800 rounded text-sm">
-                                            <strong>Notes:</strong> {intern.submission.intern_notes}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Quick Actions for Each Intern */}
-                                <div className="flex gap-2 pl-11">
-                                    {intern.submission.status === 'pending' && (
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => handleInternStatusUpdate(intern.id, 'in_progress')}
-                                        >
-                                            Start
-                                        </Button>
-                                    )}
-                                    {intern.submission.status === 'in_progress' && (
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => handleInternStatusUpdate(intern.id, 'done')}
-                                        >
-                                            Complete
-                                        </Button>
-                                    )}
-                                    {intern.submission.status === 'done' && (
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => handleInternStatusUpdate(intern.id, 'in_progress')}
-                                        >
-                                            Reopen
-                                        </Button>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
-        );
-    };
-
-
     return (
         <div className="p-6 space-y-6">
+            {/* Delete Comment Confirmation Dialog */}
+            <AlertDialog open={showDeleteCommentDialog} onOpenChange={setShowDeleteCommentDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure you want to delete this comment?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. The comment will be permanently removed.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDeleteComment}
+                            className="bg-destructive hover:bg-destructive/90"
+                        >
+                            {deletingComment ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                                <Trash2 className="w-4 h-4 mr-2" />
+                            )}
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Delete Attachment Confirmation Dialog */}
+            <AlertDialog open={showDeleteAttachmentDialog} onOpenChange={setShowDeleteAttachmentDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure you want to delete this attachment?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. The file will be permanently removed.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDeleteAttachment}
+                            className="bg-destructive hover:bg-destructive/90"
+                        >
+                            {deletingAttachment ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                                <Trash2 className="w-4 h-4 mr-2" />
+                            )}
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
@@ -694,7 +758,10 @@ const TaskDetailPage = ({ params }: { params: { id: string } }) => {
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
-                                                    onClick={() => handleDeleteAttachment(attachment.id)}
+                                                    onClick={() => {
+                                                        setDeletingAttachment(attachment.id);
+                                                        setShowDeleteAttachmentDialog(true);
+                                                    }}
                                                     disabled={deletingAttachment === attachment.id}
                                                 >
                                                     {deletingAttachment === attachment.id ? (
@@ -755,7 +822,10 @@ const TaskDetailPage = ({ params }: { params: { id: string } }) => {
                                                             variant="ghost"
                                                             size="icon"
                                                             className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                                            onClick={() => handleDeleteComment(comment.id)}
+                                                            onClick={() => {
+                                                                setDeletingComment(comment.id);
+                                                                setShowDeleteCommentDialog(true);
+                                                            }}
                                                             disabled={deletingComment === comment.id}
                                                         >
                                                             {deletingComment === comment.id ? (
@@ -795,7 +865,6 @@ const TaskDetailPage = ({ params }: { params: { id: string } }) => {
                                 </div>
                             </div>
                         )}
-
                     </CardContent>
                 </Card>
 
@@ -995,7 +1064,7 @@ const TaskDetailPage = ({ params }: { params: { id: string } }) => {
                         </CardContent>
                     </Card>
 
-                    {/* Add the file upload section to your sidebar */}
+                    {/* Add Attachment */}
                     <Card>
                         <CardHeader>
                             <CardTitle>Add Attachment</CardTitle>

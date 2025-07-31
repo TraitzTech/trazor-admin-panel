@@ -8,6 +8,22 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Search,
   Filter,
   Plus,
@@ -30,6 +46,7 @@ import {
 // Import your API functions
 import { apiFetch } from '@/lib/api';
 import {useRouter} from "next/navigation";
+import {toast} from "sonner";
 
 const TasksPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,6 +54,8 @@ const TasksPage = () => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, task: null });
+  const [deleting, setDeleting] = useState(false);
 
   const router = useRouter();
 
@@ -61,6 +80,39 @@ const TasksPage = () => {
     fetchTasks();
   }, []);
 
+  const handleDeleteTask = async (taskId) => {
+    try {
+      setDeleting(true);
+      const response = await apiFetch(`/tasks/${taskId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.success) {
+        // Remove the task from the local state
+        setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+        setDeleteDialog({ open: false, task: null });
+
+        console.log('Task deleted successfully');
+        toast.success('Task deleted successfully');
+      } else {
+        throw new Error(response.message || 'Failed to delete task');
+      }
+    } catch (err) {
+      console.error('Error deleting task:', err);
+      setError(err.message || 'Failed to delete task');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const openDeleteDialog = (task) => {
+    setDeleteDialog({ open: true, task });
+  };
+
+  const closeDeleteDialog = () => {
+    setDeleteDialog({ open: false, task: null });
+  };
+
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         task.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -74,7 +126,6 @@ const TasksPage = () => {
     pending: tasks.filter(t => t.status === 'pending').length,
     in_progress: tasks.filter(t => t.status === 'in_progress').length,
     completed: tasks.filter(t => t.status === 'done').length,
-
   };
 
   const getStatusColor = (status) => {
@@ -146,7 +197,9 @@ const TasksPage = () => {
             <h1 className="text-2xl font-bold text-foreground">Task Management</h1>
             <p className="text-sm text-muted-foreground">Manage internship tasks and assignments</p>
           </div>
-          <Button>
+          <Button onClick={() => {
+            router.push('/dashboard/tasks/create');
+          }}>
             <Plus className="w-4 h-4 mr-2" />
             Create Task
           </Button>
@@ -182,11 +235,10 @@ const TasksPage = () => {
             <CardContent className="p-4">
               <div className="text-center">
                 <p className="text-2xl font-bold text-green-600">{taskStats.completed}</p>
-                <p className="text-sm text-muted-foreground">Completed</p>
+                <p className="text-sm text-muted-foregreen">Completed</p>
               </div>
             </CardContent>
           </Card>
-
         </div>
 
         {/* Filters and Search */}
@@ -327,13 +379,22 @@ const TasksPage = () => {
                             <Edit className="w-4 h-4 mr-2" />
                             Edit
                           </Button>
-                          <Button variant="outline" size="sm">
-                            <Settings className="w-4 h-4 mr-2" />
-                            Manage
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                  onClick={() => openDeleteDialog(task)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete Task
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
                   ))
@@ -341,6 +402,48 @@ const TasksPage = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialog.open} onOpenChange={closeDeleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Task</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete the task "{deleteDialog.task?.title}"?
+                This action will permanently remove the task and all its related data including:
+                <ul className="mt-2 ml-4 list-disc text-sm">
+                  <li>All comments</li>
+                  <li>All attachments</li>
+                  <li>Intern assignments</li>
+                  <li>Task progress data</li>
+                </ul>
+                This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={closeDeleteDialog} disabled={deleting}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                  onClick={() => handleDeleteTask(deleteDialog.task?.id)}
+                  disabled={deleting}
+                  className="bg-red-600 hover:bg-red-700"
+              >
+                {deleting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Deleting...
+                    </>
+                ) : (
+                    <>
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete Task
+                    </>
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
   );
 };
