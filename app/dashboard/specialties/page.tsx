@@ -55,10 +55,19 @@ const SpecialtiesPage = () => {
   useEffect(() => {
     const fetchSpecialties = async () => {
       try {
-        const data = await apiFetch('/specialties');
-        setSpecialties(data.specialties || []); // extract array safely
-        setTotalInterns(data.totalInterns || 0);
-      } catch (error: any) {
+        const response = await apiFetch('/specialties');
+
+        // Fix: Access the correct property from API response
+        setSpecialties(response.data || []); // Use 'data' instead of 'specialties'
+
+        // Calculate total interns from the specialties data
+        const totalInternsCount = response.data?.reduce((sum, specialty) => {
+          return sum + (Array.isArray(specialty.interns) ? specialty.interns.length : 0);
+        }, 0) || 0;
+
+        setTotalInterns(totalInternsCount);
+
+      } catch (error) {
         toast.error('Failed to load specialties', {
           description: error.message,
         });
@@ -85,7 +94,10 @@ const SpecialtiesPage = () => {
     inactive: specialties.filter(s => s.status === 'inactive').length,
     totalInterns: specialties.reduce((sum, s) => sum + (Array.isArray(s.interns) ? s.interns.length : 0), 0),
     totalSupervisors: specialties.reduce((sum, s) => sum + (Array.isArray(s.supervisors) ? s.supervisors.length : 0), 0),
-    avgRating: (specialties.reduce((sum, s) => sum + s.averageRating, 0) / specialties.length).toFixed(1)
+    // Note: averageRating doesn't exist in my API response, so this will be NaN
+    avgRating: specialties.length > 0 ?
+        (specialties.reduce((sum, s) => sum + (s.averageRating || 0), 0) / specialties.length).toFixed(1) :
+        '0.0'
   };
 
   const categories = ['Technology', 'Design', 'Marketing', 'Business'];
@@ -274,39 +286,46 @@ const SpecialtiesPage = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-sm text-muted-foreground">{specialty.description}</p>
-                  
+
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div className="flex items-center">
                       <GraduationCap className="w-4 h-4 mr-2 text-blue-500" />
-                      <span>{specialty.totalInterns} interns</span>
+                      <span>{Array.isArray(specialty.interns) ? specialty.interns.length : 0} interns</span>
                     </div>
                     <div className="flex items-center">
                       <UserCheck className="w-4 h-4 mr-2 text-green-500" />
-                      <span>{specialty.activeSupervisors} supervisors</span>
+                      <span>{Array.isArray(specialty.supervisors) ? specialty.supervisors.length : 0} supervisors</span>
                     </div>
                     <div className="flex items-center">
                       <Award className="w-4 h-4 mr-2 text-yellow-500" />
-                      <span>{specialty.averageRating} rating</span>
+                      <span>{specialty.averageRating || 'N/A'} rating</span>
                     </div>
                     <div className="flex items-center">
                       <TrendingUp className="w-4 h-4 mr-2 text-purple-500" />
-                      <span>{specialty.completionRate}% completion</span>
+                      <span>{specialty.completionRate || 'N/A'}% completion</span>
                     </div>
                   </div>
-                  
+
                   <div>
                     <p className="text-sm font-medium text-foreground mb-2">Partner Companies:</p>
                     <div className="flex flex-wrap gap-1">
-                      {Array.isArray(specialty.companies) &&
-                          specialty.companies.slice(0, 3).map((company, index) => (
-                              <Badge key={index} variant="outline" className="text-xs">
-                          <Building className="w-3 h-3 mr-1" />
-                          {company}
-                        </Badge>
-                      ))}
-                      {Array.isArray(specialty.companies) && specialty.companies.length > 3 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{specialty.companies.length - 3} more
+                      {Array.isArray(specialty.partner_companies) && specialty.partner_companies.length > 0 ? (
+                          <>
+                            {specialty.partner_companies.slice(0, 3).map((company, index) => (
+                                <Badge key={index} variant="outline" className="text-xs">
+                                  <Building className="w-3 h-3 mr-1" />
+                                  {company}
+                                </Badge>
+                            ))}
+                            {specialty.partner_companies.length > 3 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{specialty.partner_companies.length - 3} more
+                                </Badge>
+                            )}
+                          </>
+                      ) : (
+                          <Badge variant="outline" className="text-xs text-muted-foreground">
+                            No partner companies
                           </Badge>
                       )}
                     </div>
