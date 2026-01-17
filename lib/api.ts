@@ -41,9 +41,12 @@ export async function apiFetch(path: string, options?: ApiFetchOptions) {
 
   if (!res.ok) {
     let errorMessage = 'An error occurred';
+    let errors = null;
     try {
       const errorData = await res.json();
       errorMessage = errorData.message || errorMessage;
+      errors = errorData.errors || null;
+      console.error('API Error Response:', errorData);
     } catch (e) {
       try {
         errorMessage = await res.text();
@@ -51,6 +54,7 @@ export async function apiFetch(path: string, options?: ApiFetchOptions) {
     }
     const error = new Error(errorMessage) as any;
     error.status = res.status;
+    error.errors = errors;
     throw error;
   }
 

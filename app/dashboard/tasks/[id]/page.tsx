@@ -86,7 +86,7 @@ const TaskDetailPage = ({ params }: { params: { id: string } }) => {
         try {
             await apiFetch(`/comments/${editingComment.id}`, {
                 method: 'PUT',
-                body: JSON.stringify({ content: comment }),
+                body: JSON.stringify({ body: comment }),
             });
 
             toast.success('Comment updated successfully');
@@ -273,9 +273,9 @@ const TaskDetailPage = ({ params }: { params: { id: string } }) => {
         }
 
         try {
-            await apiFetch(`/tasks/comments`, {
+            await apiFetch(`/comments`, {
                 method: 'POST',
-                body: JSON.stringify({ content: comment, task_id: id }),
+                body: JSON.stringify({ body: comment, task_id: id }),
             });
 
             toast.success('Comment added successfully');

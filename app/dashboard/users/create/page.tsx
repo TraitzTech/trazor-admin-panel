@@ -136,19 +136,50 @@ const CreateUserPage = () => {
       return;
     }
 
+    if (formData.role === 'admin' && formData.permissions.length === 0) {
+      toast.error('Please select at least one permission for the admin');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Prepare the data to send
-      const submitData = {
-        ...formData,
-        // Ensure specialty_id is sent as integer if it exists
-        specialty_id: formData.specialty_id ? parseInt(formData.specialty_id) : null,
-        // Clean up empty fields
+      // Prepare the data to send based on role
+      const baseData = {
+        name: formData.name,
+        email: formData.email,
+        role: formData.role,
         phone: formData.phone.trim() || null,
         location: formData.location.trim() || null,
         bio: formData.bio.trim() || null,
       };
+
+      let submitData: any = { ...baseData };
+
+      // Add role-specific fields
+      if (formData.role === 'intern') {
+        submitData = {
+          ...submitData,
+          specialty_id: parseInt(formData.specialty_id),
+          institution: formData.institution,
+          hort_number: formData.hort_number,
+          // Send dates in YYYY-MM-DD format for MySQL
+          start_date: formData.start_date,
+          end_date: formData.end_date,
+        };
+      } else if (formData.role === 'supervisor') {
+        submitData = {
+          ...submitData,
+          specialty_id: parseInt(formData.specialty_id),
+        };
+      } else if (formData.role === 'admin') {
+        submitData = {
+          ...submitData,
+          permissions: formData.permissions,
+        };
+      }
+
+      console.log('Submitting user data:', submitData);
 
       const response = await apiFetch('/admin/users', {
         method: 'POST',
@@ -170,9 +201,15 @@ const CreateUserPage = () => {
       } else {
         toast.error(response.message || 'Failed to create user');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error creating user:', err);
-      toast.error(err.message || 'Failed to create user');
+      // Handle validation errors (422)
+      if (err.status === 422 && err.errors) {
+        const errorMessages = Object.values(err.errors).flat();
+        errorMessages.forEach((msg: string) => toast.error(msg));
+      } else {
+        toast.error(err.message || 'Failed to create user');
+      }
     } finally {
       setLoading(false);
     }
